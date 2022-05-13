@@ -51,3 +51,6 @@ v0.0.1
 合成模式: `gray`或`color` （后者合成的里图是彩色的）
 
 至少两张图片
+
+## 致谢
+插件核心算法来自 [MirageTankGO](https://github.com/Aloxaf/MirageTankGo)
