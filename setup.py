@@ -4,7 +4,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="nonebot_plugin_mirageTank",
+    name="nonebot_plugin_miragetank",
     version="0.0.1",
     keywords=["pip", "nonebot_plugin_miragetank"],
     description="Generate miragetank photo",
