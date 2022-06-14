@@ -23,7 +23,7 @@
 
 ## 版本
 
-v0.0.1
+v0.0.4  - 修复了参数获取的 bug ， ~~有没有新bug就不知道了~~
 
 ⚠ 适配nonebot2-2.0.0beta版本；
 
@@ -51,6 +51,8 @@ v0.0.1
 合成模式: `gray`或`color` （后者合成的里图是彩色的）
 
 至少两张图片
+
+可随时取消命令
 
 ## 致谢
 插件核心算法来自 [MirageTankGO](https://github.com/Aloxaf/MirageTankGo)
