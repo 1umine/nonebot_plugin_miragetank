@@ -5,6 +5,7 @@ import aiohttp
 import numpy as np
 from PIL import Image, ImageEnhance
 
+np.seterr(divide="ignore", invalid="ignore")
 
 # ------来自 https://github.com/Aloxaf/MirageTankGo/blob/master/MTCore/MTCore.py----------------
 async def resize_image(
