@@ -9,7 +9,7 @@ from nonebot.typing import T_State
 from .data_source import color_car, get_img, gray_car
 
 mirage_tank = on_command(
-    "幻影坦克", aliases={"miragetank"}, priority=27
+    "生成幻影坦克", aliases={"miragetank"}, priority=27
 )
 
 
