@@ -146,8 +146,24 @@ async def get_img(img_url: str):
         return
     async with aiohttp.ClientSession() as session:
         async with session.get(img_url) as resp:
-            result = await resp.read()
-    if not result:
-        return None
-    img = Image.open(io.BytesIO(result))
-    return img
+            if resp.status == 200:
+                result = await resp.read()
+                img = Image.open(io.BytesIO(result))
+                return img
+
+
+def seperate(img: Image.Image):
+    """
+    返回 表图，里图
+    """
+    black_bg = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    white_bg = Image.new("RGBA", img.size, (255, 255, 255, 0))
+    black_bg.paste(img, mask=img)
+    white_bg.paste(img, mask=img)
+    black_bg = ImageEnhance.Brightness(black_bg).enhance(5.5)
+    out_o = io.BytesIO()
+    out_i = io.BytesIO()
+    white_bg.convert("RGB").save(out_o, format="jpeg")
+    black_bg.convert("RGB").save(out_i, format="jpeg")
+
+    return out_o, out_i

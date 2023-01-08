@@ -5,18 +5,19 @@ from nonebot.params import CommandArg
 from nonebot.typing import T_State
 from nonebot.plugin import PluginMetadata
 
-from .data_source import color_car, get_img, gray_car
+from .data_source import color_car, get_img, gray_car, seperate
 
 
 __plugin_meta__ = PluginMetadata(
-    "miragetank",
-    "合成幻影坦克图片",
-    "/miragetank <图片1> <图片2>"
+    name="miragetank",
+    description="合成幻影坦克图片",
+    usage="/miragetank <图片1> <图片2>",
 )
 
-mirage_tank = on_command(
-    "生成幻影坦克", aliases={"miragetank", "幻影坦克"}, priority=27
-)
+priority = 27
+
+mirage_tank = on_command("生成幻影坦克", aliases={"miragetank", "幻影坦克"}, priority=priority)
+sep_miragetank = on_command("分离幻影坦克", priority=priority)
 
 
 @mirage_tank.handle()
@@ -69,3 +70,29 @@ async def get_images(state: T_State):
     if res:
         img_urls = []
         await mirage_tank.finish(MessageSegment.image(res))
+
+
+@sep_miragetank.handle()
+async def get_img_arg(state: T_State, args: Message = CommandArg()):
+    has_img = any(seg.type == "image" for seg in args)
+    if has_img:
+        state["miragetank_img_url"] = args
+
+
+@sep_miragetank.got("miragetank_img_url", "请发送一张幻影坦克图片")
+async def sep(state: T_State):
+    img_url = [
+        seg.data["url"] for seg in state["miragetank_img_url"] if seg.type == "image"
+    ]
+    if not img_url:
+        await sep_miragetank.finish("没有检测到图片，已结束")
+
+    img = await get_img(img_url[0])
+    if not img:
+        await sep_miragetank.finish("图片下载失败，待会再试吧")
+
+    await sep_miragetank.send("稍等，正在分离")
+    outer, inner = seperate(img)
+    await sep_miragetank.finish(
+        MessageSegment.image(outer) + MessageSegment.image(inner), at_sender=True
+    )
