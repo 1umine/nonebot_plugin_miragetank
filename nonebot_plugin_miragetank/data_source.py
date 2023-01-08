@@ -152,15 +152,16 @@ async def get_img(img_url: str):
                 return img
 
 
-def seperate(img: Image.Image):
+def seperate(img: Image.Image, bright_factor: float = 3.3):
     """
     返回 表图，里图
     """
+
     black_bg = Image.new("RGBA", img.size, (0, 0, 0, 0))
     white_bg = Image.new("RGBA", img.size, (255, 255, 255, 0))
     black_bg.paste(img, mask=img)
     white_bg.paste(img, mask=img)
-    black_bg = ImageEnhance.Brightness(black_bg).enhance(3.3)
+    black_bg = ImageEnhance.Brightness(black_bg).enhance(bright_factor)
     out_o = io.BytesIO()
     out_i = io.BytesIO()
     white_bg.convert("RGB").save(out_o, format="jpeg")
