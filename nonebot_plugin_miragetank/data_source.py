@@ -7,7 +7,7 @@ from PIL import Image, ImageEnhance
 
 np.seterr(divide="ignore", invalid="ignore")
 
-# ------来自 https://github.com/Aloxaf/MirageTankGo/blob/master/MTCore/MTCore.py----------------
+
 async def resize_image(
     im1: Image.Image, im2: Image.Image, mode: str
 ) -> Tuple[Image.Image, Image.Image]:
@@ -160,7 +160,7 @@ def seperate(img: Image.Image):
     white_bg = Image.new("RGBA", img.size, (255, 255, 255, 0))
     black_bg.paste(img, mask=img)
     white_bg.paste(img, mask=img)
-    black_bg = ImageEnhance.Brightness(black_bg).enhance(5.5)
+    black_bg = ImageEnhance.Brightness(black_bg).enhance(3.3)
     out_o = io.BytesIO()
     out_i = io.BytesIO()
     white_bg.convert("RGB").save(out_o, format="jpeg")
