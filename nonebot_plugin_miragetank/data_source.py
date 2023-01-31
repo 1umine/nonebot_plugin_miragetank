@@ -1,6 +1,6 @@
 import io
-from typing import Tuple
-
+from typing import Tuple, List
+import asyncio
 import aiohttp
 import numpy as np
 from PIL import Image, ImageEnhance
@@ -8,7 +8,7 @@ from PIL import Image, ImageEnhance
 np.seterr(divide="ignore", invalid="ignore")
 
 
-async def resize_image(
+def resize_image(
     im1: Image.Image, im2: Image.Image, mode: str
 ) -> Tuple[Image.Image, Image.Image]:
     """
@@ -32,11 +32,9 @@ async def resize_image(
     return wimg, bimg
 
 
-async def gray_car(
+def gray_car(
     wimg: Image.Image,
     bimg: Image.Image,
-    wlight: float = 1.0,
-    blight: float = 0.3,
     chess: bool = False,
 ):
     """
@@ -48,7 +46,7 @@ async def gray_car(
     :param chess: 是否棋盘格化
     :return: 处理后的图像
     """
-    wimg, bimg = await resize_image(wimg, bimg, "L")
+    wimg, bimg = resize_image(wimg, bimg, "L")
 
     wpix = np.array(wimg).astype("float64")
     bpix = np.array(bimg).astype("float64")
@@ -59,8 +57,8 @@ async def gray_car(
         wpix[::2, ::2] = 255.0
         bpix[1::2, 1::2] = 0.0
 
-    wpix *= wlight
-    bpix *= blight
+    wpix = wpix * 0.5 + 128
+    bpix *= 0.5
 
     a = 1.0 - wpix / 255.0 + bpix / 255.0
     r = np.where(abs(a) > 1e-6, bpix / a, 255.0)
@@ -74,7 +72,7 @@ async def gray_car(
     return output
 
 
-async def color_car(
+def color_car(
     wimg: Image.Image,
     bimg: Image.Image,
     wlight: float = 1.0,
@@ -97,7 +95,7 @@ async def color_car(
     wimg = ImageEnhance.Brightness(wimg).enhance(wlight)
     bimg = ImageEnhance.Brightness(bimg).enhance(blight)
 
-    wimg, bimg = await resize_image(wimg, bimg, "RGB")
+    wimg, bimg = resize_image(wimg, bimg, "RGB")
 
     wpix = np.array(wimg).astype("float64")
     bpix = np.array(bimg).astype("float64")
@@ -141,15 +139,17 @@ async def color_car(
     return output
 
 
-async def get_img(img_url: str):
-    if not img_url:
-        return
+async def _download_img(session: aiohttp.ClientSession, url: str):
+    async with session.get(url) as r:
+        if r.status == 200:
+            return Image.open(io.BytesIO(await r.read()))
+
+async def get_imgs(img_urls: List[str]) -> List[Image.Image]:
+    if not img_urls:
+        return []
     async with aiohttp.ClientSession() as session:
-        async with session.get(img_url) as resp:
-            if resp.status == 200:
-                result = await resp.read()
-                img = Image.open(io.BytesIO(result))
-                return img
+        imgs = await asyncio.gather(*[_download_img(session, url) for url in img_urls])
+        return [img for img in imgs if img]
 
 
 def seperate(img: Image.Image, bright_factor: float = 3.3):
@@ -168,3 +168,37 @@ def seperate(img: Image.Image, bright_factor: float = 3.3):
     black_bg.convert("RGB").save(out_i, format="jpeg")
 
     return out_o, out_i
+
+
+class GenInfo:
+    """
+    生成图片所需信息
+    """
+    
+    def __init__(self, mode: str, img_urls: List[str] = []):
+        self.mode = mode
+        self.img_urls = img_urls
+
+    def valid_mode(self):
+        """
+        检查合成模式是否合法
+        """
+        return self.mode in ("gray", "color")
+
+    def enough_img_url(self):
+        """
+        检查图片数量是否足够
+        """
+        return len(self.img_urls) >= 2
+
+    def has_img(self):
+        return len(self.img_urls) > 0
+
+    def is_ready(self):
+        return self.valid_mode() and self.enough_img_url()
+
+    def params_info(self):
+        return (
+            f"合成模式：{self.mode} (需为 gray | color)\n"
+            f"图片数量：{len(self.img_urls)}/2"
+        )
