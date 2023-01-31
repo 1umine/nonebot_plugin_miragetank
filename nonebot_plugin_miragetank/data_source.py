@@ -1,5 +1,6 @@
 import io
 from typing import Tuple, List
+
 import asyncio
 import aiohttp
 import numpy as np
@@ -14,6 +15,13 @@ def resize_image(
     """
     统一图像大小
     """
+    im1_w, im1_h = im1.size
+    if im1_w * im1_h > 1500 * 2000:
+        if im1_w > 1500:
+            im1 = im1.resize((1500, int(im1_h * (1500 / im1_w))))
+        else:
+            im1 = im1.resize((im1_w * (1500 / im1_h), 1500))
+
     _wimg = im1.convert(mode)
     _bimg = im2.convert(mode).resize(_wimg.size, Image.NEAREST)
 
@@ -28,7 +36,7 @@ def resize_image(
 
     wimg.paste(_wimg, ((width - wwidth) // 2, (height - wheight) // 2))
     bimg.paste(_bimg, ((width - bwidth) // 2, (height - bheight) // 2))
-
+    
     return wimg, bimg
 
 
