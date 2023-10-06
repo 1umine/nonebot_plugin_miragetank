@@ -20,6 +20,9 @@ __plugin_meta__ = PluginMetadata(
 可选参数：
     亮度增强值：取值建议 1~6，默认2（对应本插件合成的gray模式图，color模式图建议设置为5.5）
     """.strip(),
+    type="application",
+    homepage="https://github.com/1umine/nonebot_plugin_miragetank",
+    supported_adapters={"onebot"},
 )
 
 priority = 27
@@ -99,6 +102,7 @@ async def gen_img(event: MessageEvent, state: T_State):
             res = color_car(*imgs)
         if res:
             await mirage_tank.finish(MessageSegment.image(res))
+
 
 # 分离幻影坦克
 @sep_miragetank.handle()

@@ -36,7 +36,7 @@ def resize_image(
 
     wimg.paste(_wimg, ((width - wwidth) // 2, (height - wheight) // 2))
     bimg.paste(_bimg, ((width - bwidth) // 2, (height - bheight) // 2))
-    
+
     return wimg, bimg
 
 
@@ -152,6 +152,7 @@ async def _download_img(session: aiohttp.ClientSession, url: str):
         if r.status == 200:
             return Image.open(io.BytesIO(await r.read()))
 
+
 async def get_imgs(img_urls: List[str]) -> List[Image.Image]:
     if not img_urls:
         return []
@@ -182,7 +183,7 @@ class GenInfo:
     """
     生成图片所需信息
     """
-    
+
     def __init__(self, mode: str, img_urls: List[str] = []):
         self.mode = mode
         self.img_urls = img_urls
@@ -206,7 +207,4 @@ class GenInfo:
         return self.valid_mode() and self.enough_img_url()
 
     def params_info(self):
-        return (
-            f"合成模式：{self.mode} (需为 gray | color)\n"
-            f"图片数量：{len(self.img_urls)}/2"
-        )
+        return f"合成模式：{self.mode} (需为 gray | color)\n" f"图片数量：{len(self.img_urls)}/2"

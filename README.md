@@ -11,17 +11,19 @@
   </a>
   
   <a href="https://github.com/nonebot/nonebot2">
-    <img src="https://img.shields.io/badge/nonebot2-2.0.0rc1-green">
+    <img src="https://img.shields.io/badge/nonebot2-2.0.1-green">
   </a>
   
   <a href="">
-    <img src="https://img.shields.io/badge/release-v0.1.3-orange">
+    <img src="https://img.shields.io/badge/release-v0.1.4-orange">
   </a>
   
 </p>
 </p>
 
 ## 版本
+
+v0.1.4  - 适配正式版
 
 v0.1.3  - 修复部分bug (~~新增若干bug~~), 更灵活的参数获取（可使用回复中的图片）, 优化（或许）了点 gray 模式合成的图片的效果
 
@@ -35,13 +37,18 @@ v0.0.5  - 适配了 rc 版本
 
 ## 安装
 
-1. 通过`pip`或`nb`安装；
+通过`pip`或`nb`安装；
 
 命令
 
-`pip install nonebot_plugin_miragetank`
-
-`nb plugin install nonebot_plugin_miragetank`
+1. 安装完在 `pyproject.toml` 中手动添加插件名以加载插件
+```
+pip install nonebot_plugin_miragetank
+```
+2. 使用 `nb-cli` , 需要在 bot 根目录下执行
+```
+nb plugin install nonebot_plugin_miragetank
+```
 
 ## 功能
 
