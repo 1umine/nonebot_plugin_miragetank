@@ -22,7 +22,7 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     type="application",
     homepage="https://github.com/1umine/nonebot_plugin_miragetank",
-    supported_adapters={"onebot"},
+    supported_adapters={"~onebot.v11"},
 )
 
 priority = 27

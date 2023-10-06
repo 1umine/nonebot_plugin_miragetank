@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-miragetank"
-version = "0.1.4"
+version = "0.1.5"
 description = "生成幻影坦克图，在不同背景下显示不同图片"
 authors = [
     {name = "1umine", email = "a1628420979@163.com"},
