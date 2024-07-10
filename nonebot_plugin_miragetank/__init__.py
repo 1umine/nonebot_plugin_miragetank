@@ -1,13 +1,17 @@
-from typing import List, Dict
-from nonebot import on_command
-from nonebot.adapters.onebot.v11 import Message, MessageSegment, MessageEvent
-from nonebot.adapters.onebot.v11.helpers import HandleCancellation, Numbers
-from nonebot.params import CommandArg
-from nonebot.typing import T_State
-from nonebot.plugin import PluginMetadata
+from nonebot import require, on_command
+from nonebot.adapters import Message
+from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 from nonebot.log import logger
+from nonebot.params import CommandArg
 
-from .data_source import color_car, get_imgs, gray_car, seperate, GenInfo
+require("nonebot_plugin_alconna")
+require("nonebot_plugin_waiter")
+
+from nonebot_plugin_alconna import Image, UniMessage
+from nonebot_plugin_waiter import waiter
+
+from .data_source import color_car, get_imgs, gray_car, seperate
+from .depends import Images, Mode, Bright, get_img_urls
 
 
 __plugin_meta__ = PluginMetadata(
@@ -22,132 +26,101 @@ __plugin_meta__ = PluginMetadata(
     """.strip(),
     type="application",
     homepage="https://github.com/1umine/nonebot_plugin_miragetank",
-    supported_adapters={"~onebot.v11"},
+    supported_adapters=inherit_supported_adapters("nonebot_plugin_alconna"),
 )
 
-priority = 27
-
-mirage_tank = on_command("生成幻影坦克", aliases={"miragetank", "幻影坦克"}, priority=priority)
-sep_miragetank = on_command("分离幻影坦克", priority=priority)
-gen_infos: Dict[str, GenInfo] = {}
-
-
-def get_img_urls(event: MessageEvent):
-    """
-    获取消息中的图片链接（包括回复的消息）
-    """
-    urls: List[str] = []
-    if event.reply:
-        urls = [
-            seg.data["url"]
-            for seg in event.reply.message
-            if (seg.type == "image") and ("url" in seg.data)
-        ]
-    urls.extend(
-        [
-            seg.data["url"]
-            for seg in event.message
-            if (seg.type == "image") and ("url" in seg.data)
-        ]
-    )
-    return urls
+PRIORITY = 27
+BLOCK = True
+mirage_tank = on_command(
+    "生成幻影坦克",
+    aliases={"miragetank", "幻影坦克", "合成幻影坦克"},
+    priority=PRIORITY,
+    block=BLOCK,
+)
+sep_miragetank = on_command("分离幻影坦克", priority=PRIORITY, block=BLOCK)
 
 
 @mirage_tank.handle()
-async def handle_first(
-    event: MessageEvent, state: T_State, args: Message = CommandArg()
+async def _(
+    matched_imgs: list[Image] = Images(),
+    mode: Message = CommandArg(),
 ):
-    mode = args.extract_plain_text().strip()
-    img_urls = get_img_urls(event)
-    gen_info = GenInfo(mode, img_urls)
-    gen_infos[event.get_session_id()] = gen_info
-    if not gen_info.is_ready():
-        state["miragetank_gen_prompt"] = f"缺少或存在不合法参数, 参数情况：\n{gen_info.params_info()}"
-    else:
-        state["miragetank_gen_info"] = True
+    img_urls = get_img_urls(msg_imgs=matched_imgs)
+    generate_mode = mode.extract_plain_text().strip()
+    if not generate_mode or not generate_mode in ("gray", "color"):
+        await mirage_tank.send("请输入合成模式: gray 或 color")
+    elif len(img_urls) < 2:
+        await mirage_tank.send(f"还需要 {2 - len(img_urls)} 张图")
 
+    @waiter(waits=["message"], keep_session=True)
+    async def get_params(m: str = Mode(), imgs: list[Image] = Images()):
+        return m, imgs
 
-@mirage_tank.got(
-    "miragetank_gen_info",
-    prompt=Message.template("{miragetank_gen_prompt}"),
-    parameterless=[HandleCancellation("已取消")],
-)
-async def gen_img(event: MessageEvent, state: T_State):
-    gen_info = gen_infos[event.get_session_id()]
+    async for r in get_params(retry=5, prompt=""):  # type: ignore
+        r: tuple[str, list[Image]]
+        m, imgs = r
+        if m and m.strip() in ("取消", "结束", "算了"):
+            await mirage_tank.finish("已取消")
 
-    if not gen_info.valid_mode():
-        gen_info.mode = event.get_plaintext().strip()
-    if not gen_info.enough_img_url():
-        gen_info.img_urls.extend(get_img_urls(event))
+        if not generate_mode and m and m.strip() in ("gray", "color"):
+            generate_mode = m
+        elif not generate_mode:
+            await mirage_tank.send("请输入合成模式: gray/color (二选一)")
 
-    if not gen_info.mode:
-        await mirage_tank.reject("需要指定合成模式: gray | color")
-    elif not gen_info.valid_mode():
-        await mirage_tank.reject("合成模式必须为 gray | color")
-    elif not gen_info.has_img():
-        await mirage_tank.reject("请发送两张图片, 按表图，里图顺序")
-    elif not gen_info.enough_img_url():
-        await mirage_tank.reject("图片数量不足，请再发送一张")
+        if imgs and len(img_urls) < 2:
+            img_urls.extend(img.url for img in imgs if img.url)
 
-    if gen_info.is_ready():
-        gen_infos.pop(event.get_session_id())
-        await mirage_tank.send("开始合成...")
-        imgs = await get_imgs(gen_info.img_urls[:2])
-        if len(imgs) < 2:
-            await mirage_tank.finish("下载图片失败，过会再试吧")
-        res = None
-        if gen_info.mode == "gray":
-            res = gray_car(*imgs)
-        else:
-            res = color_car(*imgs)
-        if res:
-            await mirage_tank.finish(MessageSegment.image(res))
+        if len(img_urls) < 2:
+            await mirage_tank.send(f"还需要 {2 - len(img_urls)} 张图")
+
+        elif generate_mode:
+            break
+
+    await mirage_tank.send("开始合成...")
+    wimg, bimg = await get_imgs(img_urls[:2])
+    if not wimg:
+        await mirage_tank.finish("表图下载失败")
+    if not bimg:
+        await mirage_tank.finish("里图下载失败")
+
+    if generate_mode == "color":
+        await UniMessage.image(raw=color_car(wimg, bimg)).send()
+    elif generate_mode == "gray":
+        await UniMessage.image(raw=gray_car(wimg, bimg)).send()
 
 
 # 分离幻影坦克
 @sep_miragetank.handle()
 async def _(
-    event: MessageEvent,
-    state: T_State,
-    args: Message = CommandArg(),
-    bright: List[float] = Numbers(),
+    images: list[Image] = Images(),
+    bright: float = Bright(),
 ):
-    if event.reply:
-        args.extend(event.reply.message)
-    has_img = any(seg.type == "image" for seg in args)
-    if has_img:
-        state["miragetank_sep_img_url"] = args
+    img_urls = get_img_urls(msg_imgs=images)
+    if not img_urls:
+        await sep_miragetank.send("请发送一张幻影坦克图片")
 
-    if bright:
-        state["miragetank_sep_enhance_bright"] = bright[0]
-    else:
-        state["miragetank_sep_enhance_bright"] = 2
+        @waiter(waits=["message"], keep_session=True)
+        async def get_img(imgs: list[Image] = Images()):
+            img_urls.extend(get_img_urls(msg_imgs=imgs))
+            return img_urls
 
+        async for r in get_img(retry=2, prompt="请发送一张幻影坦克图片"):
+            if r:
+                break
+        else:
+            if not img_urls:
+                await sep_miragetank.finish("已终止")
 
-@sep_miragetank.got("miragetank_sep_img_url", prompt="请发送一张幻影坦克图片")
-async def _(state: T_State):
-    img_url = [
-        seg.data["url"]
-        for seg in state["miragetank_sep_img_url"]
-        if seg.type == "image"
-    ]
-    if not img_url:
-        await sep_miragetank.finish("没有检测到图片，已结束")
-
-    img = await get_imgs(img_url[:1])
-    if not img:
-        await sep_miragetank.finish("图片下载失败，待会再试吧")
-    elif img[0].format != "PNG":
-        await sep_miragetank.finish(f"图片格式为 {img[0].format}, 需要 PNG")
-    logger.info("获取幻影坦克图片成功")
     await sep_miragetank.send("稍等，正在分离")
+    img = (await get_imgs(img_urls[:1]))[0]
+    if not img:
+        await sep_miragetank.finish("图片下载失败")
+
+    if img.format != "PNG":
+        await sep_miragetank.finish(f"图片格式为 {img.format or '未知'}, 需要 PNG")
     try:
-        outer, inner = seperate(
-            img[0], bright_factor=state["miragetank_sep_enhance_bright"]
-        )
+        outer, inner = seperate(img, bright_factor=bright)
     except Exception as e:
         logger.error(f"分离幻影坦克失败：{e}")
-        await sep_miragetank.finish(f"分离失败：{e}", at_sender=True)
-    await sep_miragetank.finish(
-        MessageSegment.image(outer) + MessageSegment.image(inner), at_sender=True
-    )
+        await UniMessage.text("分离失败，请稍后再试").send(at_sender=True)
+    await UniMessage.image(raw=outer).image(raw=inner).send(at_sender=True)

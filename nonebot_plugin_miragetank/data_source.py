@@ -2,11 +2,15 @@ import io
 from typing import Tuple, List
 
 import asyncio
-import aiohttp
+import httpx
 import numpy as np
 from PIL import Image, ImageEnhance
+from nonebot import get_driver
+from nonebot.log import logger
 
 np.seterr(divide="ignore", invalid="ignore")
+driver = get_driver()
+client = httpx.AsyncClient()
 
 
 def resize_image(
@@ -20,10 +24,10 @@ def resize_image(
         if im1_w > 1500:
             im1 = im1.resize((1500, int(im1_h * (1500 / im1_w))))
         else:
-            im1 = im1.resize((im1_w * (1500 / im1_h), 1500))
+            im1 = im1.resize((im1_w * (1500 / im1_h), 1500))  # type: ignore
 
     _wimg = im1.convert(mode)
-    _bimg = im2.convert(mode).resize(_wimg.size, Image.NEAREST)
+    _bimg = im2.convert(mode).resize(_wimg.size, Image.Resampling.NEAREST)
 
     wwidth, wheight = _wimg.size
     bwidth, bheight = _bimg.size
@@ -147,18 +151,18 @@ def color_car(
     return output
 
 
-async def _download_img(session: aiohttp.ClientSession, url: str):
-    async with session.get(url) as r:
-        if r.status == 200:
-            return Image.open(io.BytesIO(await r.read()))
+async def _download_img(url: str):
+    r = await client.get(url, timeout=15)
+    if r.status_code == 200:
+        return Image.open(io.BytesIO(r.content))
+    logger.warning(f"下载图片 {url} 失败: {r.status_code}")
 
 
-async def get_imgs(img_urls: List[str]) -> List[Image.Image]:
+async def get_imgs(img_urls: List[str]) -> List[Image.Image | None]:
     if not img_urls:
         return []
-    async with aiohttp.ClientSession() as session:
-        imgs = await asyncio.gather(*[_download_img(session, url) for url in img_urls])
-        return [img for img in imgs if img]
+    imgs = await asyncio.gather(*[_download_img(url) for url in img_urls])
+    return [img for img in imgs]
 
 
 def seperate(img: Image.Image, bright_factor: float = 3.3):
@@ -179,32 +183,6 @@ def seperate(img: Image.Image, bright_factor: float = 3.3):
     return out_o, out_i
 
 
-class GenInfo:
-    """
-    生成图片所需信息
-    """
-
-    def __init__(self, mode: str, img_urls: List[str] = []):
-        self.mode = mode
-        self.img_urls = img_urls
-
-    def valid_mode(self):
-        """
-        检查合成模式是否合法
-        """
-        return self.mode in ("gray", "color")
-
-    def enough_img_url(self):
-        """
-        检查图片数量是否足够
-        """
-        return len(self.img_urls) >= 2
-
-    def has_img(self):
-        return len(self.img_urls) > 0
-
-    def is_ready(self):
-        return self.valid_mode() and self.enough_img_url()
-
-    def params_info(self):
-        return f"合成模式：{self.mode} (需为 gray | color)\n" f"图片数量：{len(self.img_urls)}/2"
+@driver.on_shutdown
+async def _():
+    await client.aclose()
