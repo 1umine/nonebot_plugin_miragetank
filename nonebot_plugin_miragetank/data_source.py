@@ -24,7 +24,7 @@ def resize_image(
         if im1_w > 1500:
             im1 = im1.resize((1500, int(im1_h * (1500 / im1_w))))
         else:
-            im1 = im1.resize((im1_w * (1500 / im1_h), 1500))  # type: ignore
+            im1 = im1.resize((int(im1_w * (1500 / im1_h)), 1500))  # type: ignore
 
     _wimg = im1.convert(mode)
     _bimg = im2.convert(mode).resize(_wimg.size, Image.Resampling.NEAREST)
