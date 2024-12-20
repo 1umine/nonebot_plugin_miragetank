@@ -16,7 +16,7 @@ ntqq_img_client = httpx.AsyncClient(verify=ssl_context)
 
 np.seterr(divide="ignore", invalid="ignore")
 driver = get_driver()
-client = httpx.AsyncClient(verify=ssl_context)
+default_client = httpx.AsyncClient()
 
 
 def resize_image(
@@ -160,6 +160,8 @@ def color_car(
 async def _download_img(url: str):
     if "multimedia.nt.qq.com.cn" in url:
         client = ntqq_img_client
+    else:
+        client = default_client
     r = await client.get(url, timeout=15)
     if r.status_code == 200:
         return Image.open(io.BytesIO(r.content))
@@ -193,4 +195,5 @@ def seperate(img: Image.Image, bright_factor: float = 3.3):
 
 @driver.on_shutdown
 async def _():
-    await client.aclose()
+    await default_client.aclose()
+    await ntqq_img_client.aclose()
