@@ -1,4 +1,5 @@
 import io
+import ssl
 from typing import Tuple, List
 
 import asyncio
@@ -8,9 +9,14 @@ from PIL import Image, ImageEnhance
 from nonebot import get_driver
 from nonebot.log import logger
 
+ssl_context = ssl.create_default_context()
+ssl_context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_TLSv1_3
+ssl_context.set_ciphers("HIGH:!aNULL:!MD5")
+ntqq_img_client = httpx.AsyncClient(verify=ssl_context)
+
 np.seterr(divide="ignore", invalid="ignore")
 driver = get_driver()
-client = httpx.AsyncClient()
+client = httpx.AsyncClient(verify=ssl_context)
 
 
 def resize_image(
@@ -152,6 +158,8 @@ def color_car(
 
 
 async def _download_img(url: str):
+    if "multimedia.nt.qq.com.cn" in url:
+        client = ntqq_img_client
     r = await client.get(url, timeout=15)
     if r.status_code == 200:
         return Image.open(io.BytesIO(r.content))
