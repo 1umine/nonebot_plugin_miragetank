@@ -47,34 +47,36 @@ async def _(
 ):
     img_urls = get_img_urls(msg_imgs=matched_imgs)
     generate_mode = mode.extract_plain_text().strip()
-    if not generate_mode or not generate_mode in ("gray", "color"):
+    is_valid_mode = lambda: generate_mode in ("gray", "color")
+    if not is_valid_mode():
         await mirage_tank.send("请输入合成模式: gray 或 color")
     elif len(img_urls) < 2:
         await mirage_tank.send(f"还需要 {2 - len(img_urls)} 张图")
 
-    @waiter(waits=["message"], keep_session=True)
-    async def get_params(m: str = Mode(), imgs: list[Image] = Images()):
-        return m, imgs
+    if not (is_valid_mode() and len(img_urls) >= 2):
 
-    async for r in get_params(retry=5, prompt=""):  # type: ignore
-        r: tuple[str, list[Image]]
-        m, imgs = r
-        if m and m.strip() in ("取消", "结束", "算了"):
-            await mirage_tank.finish("已取消")
+        @waiter(waits=["message"], keep_session=True)
+        async def get_params(m: str = Mode(), imgs: list[Image] = Images()):
+            return m, imgs
 
-        if not generate_mode and m and m.strip() in ("gray", "color"):
-            generate_mode = m
-        elif not generate_mode:
-            await mirage_tank.send("请输入合成模式: gray/color (二选一)")
+        async for r in get_params(retry=5, prompt=""):  # type: ignore
+            r: tuple[str, list[Image]]
+            m, imgs = r
+            if m and m.strip() in ("取消", "结束", "算了"):
+                await mirage_tank.finish("已取消")
 
-        if imgs and len(img_urls) < 2:
-            img_urls.extend(img.url for img in imgs if img.url)
+            if m and m.strip() in ("gray", "color"):
+                generate_mode = m
+            if not is_valid_mode():
+                await mirage_tank.send("请输入合成模式: gray/color (二选一)")
 
-        if len(img_urls) < 2:
-            await mirage_tank.send(f"还需要 {2 - len(img_urls)} 张图")
+            if imgs and len(img_urls) < 2:
+                img_urls.extend(img.url for img in imgs if img.url)
 
-        elif generate_mode:
-            break
+            if len(img_urls) < 2:
+                await mirage_tank.send(f"还需要 {2 - len(img_urls)} 张图")
+            elif generate_mode:  # 图片数量已满足，生成模式已提供
+                break
 
     await mirage_tank.send("开始合成...")
     wimg, bimg = await get_imgs(img_urls[:2])
